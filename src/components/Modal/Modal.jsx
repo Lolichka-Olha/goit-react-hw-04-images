@@ -1,48 +1,42 @@
-import { Component } from 'react';
+import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { Overlay, ModalBody, Image } from './Modal.styled';
 
 const modalRoot = document.querySelector('#modal-root');
 
-export class Modal extends Component {
-  static propTypes = {
-    tags: PropTypes.string,
-    onClose: PropTypes.func,
-    currentUrl: PropTypes.string,
-  };
+export const Modal = ({ tags, onClose, currentUrl }) => {
+  useEffect(() => {
+    const onKeyDownClick = e => {
+      if (e.code === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDownClick);
 
-  componentDidMount() {
-    window.addEventListener('keydown', this.onKeyDownClick);
-  }
+    return () => {
+      window.removeEventListener('keydown', onKeyDownClick);
+    };
+  }, [onClose]);
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.onKeyDownClick);
-  }
-
-  onKeyDownClick = e => {
-    if (e.code === 'Escape') {
-      this.props.onClose();
-    }
-  };
-
-  onOverlayClick = e => {
+  const onOverlayClick = e => {
     if (e.target === e.currentTarget) {
-      this.props.onClose();
+      onClose();
     }
   };
 
-  render() {
-    const { tags, onClose, currentUrl } = this.props;
-    const { onOverlayClick } = this;
+  return createPortal(
+    <Overlay onClick={onOverlayClick}>
+      <ModalBody onClick={onClose}>
+        <Image src={currentUrl} alt={tags} />
+      </ModalBody>
+    </Overlay>,
+    modalRoot
+  );
+};
 
-    return createPortal(
-      <Overlay onClick={onOverlayClick}>
-        <ModalBody onClick={onClose}>
-          <Image src={currentUrl} alt={tags} />
-        </ModalBody>
-      </Overlay>,
-      modalRoot
-    );
-  }
-}
+Modal.propTypes = {
+  onClose: PropTypes.func,
+  currentUrl: PropTypes.string,
+  tags: PropTypes.string,
+};

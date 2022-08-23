@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { Container } from './App.styled';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -9,99 +9,85 @@ import { Modal } from '../Modal/Modal';
 import { Button } from '../Button/Button';
 import { Loader } from '../Loader/Loader';
 
-export class App extends Component {
-  state = {
-    images: [],
-    isLoading: false,
-    searchName: '',
-    page: 1,
-    url: null,
-    largeImageURL: '',
-  };
+export const App = () => {
+  const [images, setImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchName, setSearchName] = useState('');
+  const [page, setPage] = useState(1);
+  const [url, setUrl] = useState(null);
 
-  componentDidUpdate(prevProps, prevState) {
-    const { searchName, page } = this.state;
-
-    if (prevState.searchName !== searchName || prevState.page !== page) {
-      this.setState({ loading: true });
-      this.searchImages();
-
+  const getSearchName = query => {
+    if (query === searchName) {
+      toast.info(
+        `The search for ${query} has already been performed. Use the "load more" button.`
+      );
       return;
     }
-  }
-
-  getImages = query => {
-    this.setState({
-      searchName: query,
-      page: 1,
-      images: [],
-    });
+    setSearchName(query);
+    setPage(1);
+    setImages([]);
   };
 
-  searchImages = async () => {
-    const { searchName, page } = this.state;
-    this.setState({ isLoading: true });
-
-    try {
-      const { hits, totalHits } = await getImages(searchName, page);
-      const totalPages = Math.ceil(totalHits / 12);
-
-      if (hits.length === 0) {
-        toast.error('No images found');
-        return;
-      }
-
-      if (page > totalPages) {
-        toast.info('No more pages');
-        return;
-      }
-
-      if (page === 1) {
-        toast.success(`${totalHits} images found`);
-      }
-      this.setState(({ images }) => ({ images: [...images, ...hits] }));
-    } catch (error) {
-      toast.error('Something went wrong');
-    } finally {
-      this.setState({ isLoading: false });
+  useEffect(() => {
+    if (!searchName) {
+      return;
     }
+    const searchImages = async () => {
+      setIsLoading(true);
+
+      try {
+        const { hits, totalHits } = await getImages(searchName, page);
+        const totalPages = Math.ceil(totalHits / 12);
+
+        if (hits.length === 0) {
+          toast.error('No images found');
+          return;
+        }
+
+        if (page > totalPages) {
+          toast.info('No more pages');
+          return;
+        }
+
+        if (page === 1) {
+          toast.success(`Found ${totalHits} images of  ${searchName}`);
+        }
+        setImages(prevImage => [...prevImage, ...hits]);
+      } catch (error) {
+        toast.error('Something went wrong');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    searchImages();
+  }, [page, searchName]);
+
+  const openModal = currentUrl => {
+    setUrl(currentUrl);
   };
 
-  openModal = currentUrl => {
-    this.setState({ url: currentUrl });
+  const closeModal = () => {
+    setUrl('');
   };
 
-  closeModal = () => {
-    this.setState({
-      url: '',
-    });
+  const loadMore = () => {
+    setPage(prevPage => prevPage + 1);
   };
 
-  loadMore = () => {
-    this.setState(({ page }) => ({
-      page: page + 1,
-    }));
-  };
+  return (
+    <Container>
+      <Searchbar onSubmit={getSearchName} />
+      <ImageGallery
+        images={images}
+        onImageClick={openModal}
+        loadMore={loadMore}
+      />
 
-  render() {
-    const { images, isLoading, url } = this.state;
-    const { getImages, openModal, closeModal, loadMore } = this;
+      {url && <Modal currentUrl={url} alt={url} onClose={closeModal} />}
 
-    return (
-      <Container>
-        <Searchbar onSubmit={getImages} />
-        <ImageGallery
-          images={images}
-          onImageClick={openModal}
-          loadMore={loadMore}
-        />
-
-        {url && <Modal currentUrl={url} alt={url} onClose={closeModal} />}
-
-        {images.length >= 12 && !isLoading && <Button onClick={loadMore} />}
-        {isLoading && <Loader />}
-        <ToastContainer position="top-right" />
-      </Container>
-    );
-  }
-}
+      {images.length >= 12 && !isLoading && <Button onClick={loadMore} />}
+      {isLoading && <Loader />}
+      <ToastContainer position="top-right" />
+    </Container>
+  );
+};
